@@ -14,7 +14,7 @@ app.use('/products', productsRoutes);
 
 const CONNECTION_URL =
   'mongodb+srv://noraiz:developer123@cluster0.kruef.mongodb.net/myFirstDatabase?retryWrites=true&w=majority';
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 
 mongoose
   .connect(CONNECTION_URL, { useNewUrlParser: true, useUnifiedTopology: true })
