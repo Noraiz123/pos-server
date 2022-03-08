@@ -3,6 +3,10 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import userRouter from './routes/user.js';
 import productsRoutes from './routes/products.js';
+import orderRoutes from './routes/orders.js';
+import categoriesRoutes from './routes/categories.js';
+import storeRoutes from './routes/store.js';
+import customerRoutes from './routes/customer.js';
 
 const app = express();
 
@@ -11,6 +15,10 @@ app.use(cors());
 
 app.use('/user', userRouter);
 app.use('/products', productsRoutes);
+app.use('/order', orderRoutes);
+app.use('/categories', categoriesRoutes);
+app.use('/store', storeRoutes);
+app.use('/customers', customerRoutes);
 
 const CONNECTION_URL =
   'mongodb+srv://noraiz:developer123@cluster0.kruef.mongodb.net/myFirstDatabase?retryWrites=true&w=majority';

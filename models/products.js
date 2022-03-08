@@ -5,10 +5,15 @@ const userSchema = mongoose.Schema({
   price: { type: Number, required: true },
   color: { type: String },
   size: { type: String },
-  category: { type: String },
+  store: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Store',
+    required: true,
+  },
+  category: { type: mongoose.Schema.Types.ObjectId, ref: 'Categories' },
   discount: { type: Number, default: 0 },
   quantity: { type: Number, default: 1 },
-  imgUrl: { type: String},
+  imgUrl: { type: String },
   createdAt: {
     type: Date,
     default: new Date(),

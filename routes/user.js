@@ -1,37 +1,12 @@
 import express from 'express';
-import { signin, signup } from '../controllers/users.js';
+import { deleteUser, getUsers, signin, signup, updateUser } from '../controllers/users.js';
 
 const router = express.Router();
 
 router.post('/sign_in', signin);
-router.post('/sign_up', signup);
+router.get('/', getUsers);
+router.post('/add', signup);
+router.put('/update/:id', updateUser);
+router.delete('/delete/:id', deleteUser);
 
 export default router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

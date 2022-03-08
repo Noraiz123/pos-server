@@ -1,13 +1,44 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import ProductsModal from '../models/products.js';
+import UsersModal from '../models/users.js';
 
 const router = express.Router();
 
 export const getProducts = async (req, res) => {
   try {
-    const productsModals = await ProductsModal.find();
-    res.status(200).json(productsModals);
+    const query = {};
+    const page = Number(req.query.page) || 1;
+    const perPage = Number(req.query.per_page) || 10;
+
+    const startIndex = (page - 1) * perPage;
+    const total = await ProductsModal.countDocuments({});
+
+    // if (req.query.search_keyword) {
+    query.$or = [
+      {
+        name: { $regex: req.query.search_keyword || '', $options: 'i' },
+      },
+    ];
+    // }
+    const user = await UsersModal.findOne({ _id: req.userId });
+
+    let productsModals;
+
+    if (user && user.role === 'superAdmin') {
+      productsModals = await ProductsModal.find(query)
+        .populate('category')
+        .populate('store')
+        .limit(perPage)
+        .skip(startIndex);
+    } else {
+      productsModals = await ProductsModal.find({ store: user.store, ...query })
+        .populate('store')
+        .populate('category')
+        .limit(perPage)
+        .skip(startIndex);
+    }
+    res.status(200).json({ products: productsModals, currentPage: page, totalPages: Math.ceil(total / perPage) });
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
@@ -17,7 +48,7 @@ export const getProduct = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const post = await ProductsModal.findById(id);
+    const post = await ProductsModal.findById(id).populate('store');
 
     res.status(200).json(post);
   } catch (error) {
@@ -28,7 +59,13 @@ export const getProduct = async (req, res) => {
 export const createProduct = async (req, res) => {
   const product = req.body;
 
-  const newProductsModal = new ProductsModal({ ...product, createdAt: new Date().toISOString() });
+  const user = await UsersModal.findOne({ _id: req.userId });
+
+  const newProductsModal = new ProductsModal({
+    ...product,
+    store: product?.store ? product.store : user.store,
+    createdAt: new Date().toISOString(),
+  });
 
   try {
     await newProductsModal.save();
@@ -43,7 +80,7 @@ export const updateProduct = async (req, res) => {
   const { id } = req.params;
   const products = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No post with id: ${id}`);
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No product with id: ${id}`);
 
   const updatedProduct = { ...products, _id: id };
 
