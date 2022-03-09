@@ -7,6 +7,7 @@ import orderRoutes from './routes/orders.js';
 import categoriesRoutes from './routes/categories.js';
 import storeRoutes from './routes/store.js';
 import customerRoutes from './routes/customer.js';
+import productsStatsRoutes from './routes/productsStats.js';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/order', orderRoutes);
 app.use('/categories', categoriesRoutes);
 app.use('/store', storeRoutes);
 app.use('/customers', customerRoutes);
+app.use('/productsStats', productsStatsRoutes);
 
 const CONNECTION_URL =
   'mongodb+srv://noraiz:developer123@cluster0.kruef.mongodb.net/myFirstDatabase?retryWrites=true&w=majority';

@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import ProductsModal from '../models/products.js';
 import UsersModal from '../models/users.js';
+import ProductsStatsModal from '../models/productsStats.js';
 
 const router = express.Router();
 
@@ -14,13 +15,11 @@ export const getProducts = async (req, res) => {
     const startIndex = (page - 1) * perPage;
     const total = await ProductsModal.countDocuments({});
 
-    // if (req.query.search_keyword) {
     query.$or = [
       {
         name: { $regex: req.query.search_keyword || '', $options: 'i' },
       },
     ];
-    // }
     const user = await UsersModal.findOne({ _id: req.userId });
 
     let productsModals;
@@ -69,6 +68,15 @@ export const createProduct = async (req, res) => {
 
   try {
     await newProductsModal.save();
+
+    const createProductsStats = new ProductsStatsModal({
+      product: newProductsModal._id,
+      store: newProductsModal.store,
+      available: newProductsModal.quantity,
+      sold: 0,
+      sales: 0,
+    });
+    await createProductsStats.save();
 
     res.status(201).json(newProductsModal);
   } catch (error) {
