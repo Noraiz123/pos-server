@@ -45,8 +45,6 @@ export const getOrders = async (req, res) => {
 
     const query = JSON.parse(req.query.query);
 
-    console.log(query);
-
     let ordersModals;
 
     const filters = {};
@@ -77,7 +75,8 @@ export const getOrders = async (req, res) => {
         .populate('salesman')
         .populate('orderItems.product')
         .limit(perPage)
-        .skip(startIndex);
+        .skip(startIndex)
+        .sort({ createdAt: -1 });
     } else if (user && user.role === 'admin') {
       ordersModals = await OrdersModal.find({
         store: user.store,
@@ -87,7 +86,8 @@ export const getOrders = async (req, res) => {
         .populate('salesman')
         .populate('orderItems.product')
         .limit(perPage)
-        .skip(startIndex);
+        .skip(startIndex)
+        .sort({ createdAt: -1 });
     } else {
       return res.status(400).json({ message: 'You are not allowed to access orders' });
     }
@@ -127,10 +127,17 @@ export const updateOrder = async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No order with id: ${id}`);
 
   let bulkOptions = order.orderItems.map((item) => {
-    const quantity =
-      item.quantity > item.previousQuantity
-        ? -(item.quantity - item.previousQuantity)
-        : +(item.previousQuantity - item.quantity);
+    let quantity;
+    if (item.delete) {
+      quantity = +item.quantity;
+    } else if (!item?.previousQuantity) {
+      quantity = -item.quantity;
+    } else {
+      quantity =
+        item.quantity > item.previousQuantity
+          ? -(item.quantity - item.previousQuantity)
+          : +(item.previousQuantity - item.quantity);
+    }
 
     return {
       updateOne: {
@@ -145,38 +152,80 @@ export const updateOrder = async (req, res) => {
   });
 
   const statsBulkOptions = order.orderItems.map((item) => {
-    const quantity =
-      item.quantity > item.previousQuantity
-        ? -(item.quantity - item.previousQuantity)
-        : +(item.previousQuantity - item.quantity);
-    const sold =
-      item.quantity > item.previousQuantity
-        ? +(item.quantity - item.previousQuantity)
-        : -(item.previousQuantity - item.quantity);
+    let quantity;
+    let sold;
+    let sales;
+    if (item.delete) {
+      quantity = +item.previousQuantity;
+      sold = -item.previousQuantity;
+      sales = -item.previousPaid;
+    } else if (!item?.previousQuantity) {
+      quantity = -item.quantity;
+      sold = +item.quantity;
+      sales = +item.paidPrice;
+    } else {
+      quantity =
+        item.quantity > item.previousQuantity
+          ? -(item.quantity - item.previousQuantity)
+          : +(item.previousQuantity - item.quantity);
+      sold =
+        item.quantity > item.previousQuantity
+          ? +(item.quantity - item.previousQuantity)
+          : -(item.previousQuantity - item.quantity);
 
-    const sales =
-      item.paidPrice > item.previousPaid
-        ? +(item.paidPrice - item.previousPaid)
-        : -(item.previousPaid - item.paidPrice);
+      sales =
+        item.paidPrice > item.previousPaid
+          ? +(item.paidPrice - item.previousPaid)
+          : -(item.previousPaid - item.paidPrice);
+    }
+
     return {
       updateOne: {
         filter: { product: item.product },
         update: {
           $inc: {
-            available: quantity,
-            sold: sold,
-            sales: sales,
+            available: Number(quantity),
+            sold: Number(sold),
+            sales: Number(sales),
           },
         },
       },
     };
   });
 
-  const updatedOrder = { ...order, _id: id };
+  const filteredItems = order.orderItems.filter((e) => !e.delete);
 
-  await OrdersModal.findByIdAndUpdate(id, updatedOrder, { new: true });
-  ProductsModal.bulkWrite(bulkOptions);
-  ProductsStatsModal.bulkWrite(statsBulkOptions);
+  const updatedOrder = { ...order, orderItems: filteredItems, _id: id };
+
+  try {
+    await OrdersModal.findByIdAndUpdate(id, updatedOrder, { new: true });
+    ProductsModal.bulkWrite(bulkOptions);
+    ProductsStatsModal.bulkWrite(statsBulkOptions);
+  } catch (error) {
+    console.log(error);
+  }
 
   res.json(updatedOrder);
+};
+
+export const getOnHoldOrders = async (req, res) => {
+  const user = await UsersModal.findOne({ _id: req.userId });
+
+  let onHoldOrders;
+
+  if (user.role === 'superAdmin') {
+    onHoldOrders = await OrdersModal.find({ status: 'onHold' })
+      .populate('cashier')
+      .populate('salesman')
+      .populate('orderItems.product')
+      .sort({ createdAt: -1 });
+  } else {
+    onHoldOrders = await OrdersModal.find({ status: 'onHold', store: user.store })
+      .populate('cashier')
+      .populate('salesman')
+      .populate('orderItems.product')
+      .sort({ createdAt: -1 });
+  }
+
+  res.status(200).json(onHoldOrders);
 };

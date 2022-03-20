@@ -25,7 +25,15 @@ export const signin = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
-    const usersModals = await UserModal.find().populate("store");
+    const user = await UserModal.findOne({ _id: req.userId });
+    let usersModals;
+    if (user?.role === 'superAdmin') {
+      usersModals = await UserModal.find().populate('store');
+    } else if (user?.role === 'admin') {
+      usersModals = await UserModal.find({ store: user.store }).populate('store');
+    } else {
+      res.status(400).json({ message: 'You are not Allowed to access users' });
+    }
     res.status(200).json(usersModals);
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -36,13 +44,19 @@ export const signup = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    const user = await UserModal.findOne({ _id: req.userId });
+
     const oldUser = await UserModal.findOne({ email });
 
     if (oldUser) return res.status(400).json({ message: 'User already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const result = await UserModal.create({ ...req.body, password: hashedPassword });
+    const result = await UserModal.create({
+      ...req.body,
+      store: user.role === 'superAdmin' ? req.body?.store : user.store,
+      password: hashedPassword,
+    });
 
     res.status(200).json(result);
   } catch (error) {

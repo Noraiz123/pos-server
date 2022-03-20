@@ -19,6 +19,9 @@ const ordersSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Customer',
   },
+  change: {
+    type: Number,
+  },
   orderItems: [
     {
       product: { type: mongoose.Schema.Types.ObjectId, ref: 'Products' },
