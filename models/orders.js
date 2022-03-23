@@ -27,10 +27,12 @@ const ordersSchema = mongoose.Schema({
       product: { type: mongoose.Schema.Types.ObjectId, ref: 'Products' },
       paidPrice: Number,
       currentPrice: Number,
+      currentDiscount: Number,
       quantity: Number,
     },
   ],
   total: { type: Number },
+  totalRetailPrice: { type: Number },
   createdAt: {
     type: Date,
     default: new Date(),

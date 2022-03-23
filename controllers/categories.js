@@ -21,8 +21,13 @@ export const getCategories = async (req, res) => {
 
 export const createCategory = async (req, res) => {
   const category = req.body;
-
-  const newCategoryModal = new CategoriesModal(category);
+  const user = await UsersModal.findOne({ _id: req.userId });
+  let newCategoryModal;
+  if (user && user.role === 'superAdmin') {
+    newCategoryModal = new CategoriesModal(category);
+  } else {
+    newCategoryModal = new CategoriesModal({ ...category, store: user.store });
+  }
   try {
     await newCategoryModal.save();
 

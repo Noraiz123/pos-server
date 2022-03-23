@@ -41,7 +41,9 @@ export const getOrders = async (req, res) => {
     const perPage = Number(req.query.per_page) || 10;
 
     const startIndex = (page - 1) * perPage;
-    const total = await OrdersModal.countDocuments({});
+    let total;
+    let totalSales;
+    let totalRetailPrice;
 
     const query = JSON.parse(req.query.query);
 
@@ -69,6 +71,7 @@ export const getOrders = async (req, res) => {
     }
 
     if (user && user.role === 'superAdmin') {
+      total = await OrdersModal.countDocuments({});
       ordersModals = await OrdersModal.find()
         .where(filters)
         .populate('cashier')
@@ -78,6 +81,7 @@ export const getOrders = async (req, res) => {
         .skip(startIndex)
         .sort({ createdAt: -1 });
     } else if (user && user.role === 'admin') {
+      total = await OrdersModal.countDocuments({ store: user.store });
       ordersModals = await OrdersModal.find({
         store: user.store,
       })
@@ -85,13 +89,68 @@ export const getOrders = async (req, res) => {
         .populate('cashier')
         .populate('salesman')
         .populate('orderItems.product')
+        .populate('customer')
         .limit(perPage)
         .skip(startIndex)
         .sort({ createdAt: -1 });
     } else {
       return res.status(400).json({ message: 'You are not allowed to access orders' });
     }
-    res.status(200).json({ orders: ordersModals, currentPage: page, totalPages: Math.ceil(total / perPage) });
+    if (total > 0) {
+      totalSales = await OrdersModal.aggregate([
+        { $match: filters },
+        {
+          $group: { _id: null, total: { $sum: '$total' } },
+        },
+      ]);
+      totalRetailPrice = await OrdersModal.aggregate([
+        { $match: filters },
+        {
+          $group: { _id: null, total: { $sum: '$totalRetailPrice' } },
+        },
+      ]);
+    }
+
+    const date = new Date();
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+
+    const statsOfFullMonth = {
+      $gte: firstDayOfMonth,
+      $lt: lastDayOfMonth,
+    };
+
+    const chartStats = await OrdersModal.aggregate([
+      {
+        $match: {
+          createdAt: filters?.createdAt ? filters.createdAt : statsOfFullMonth,
+          store: user.role === 'admin' ? user.store : undefined,
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          totalSaleAmount: { $sum: '$total' },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { totalSaleAmount: -1 },
+      },
+    ]);
+
+    res.status(200).json({
+      orders: ordersModals,
+      currentPage: page,
+      totalPages: Math.ceil(total / perPage),
+      totalTransactions: total,
+      totalSales: totalSales[0]?.total || 0,
+      totalProfit:
+        totalSales.length > 0 && totalRetailPrice.length > 0 ? totalSales[0]?.total - totalRetailPrice[0]?.total : 0,
+      chartStats: chartStats,
+    });
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
@@ -112,7 +171,12 @@ export const createOrder = async (req, res) => {
     await newOrderModal.save().then((t) => {
       decreaseQuantity(newOrderModal);
       updateProductsStats(newOrderModal);
-      return t.populate('cashier').populate('salesman').populate('orderItems.product').execPopulate();
+      return t
+        .populate('cashier')
+        .populate('salesman')
+        .populate('orderItems.product')
+        .populate('customer')
+        .execPopulate();
     });
 
     res.status(201).json(newOrderModal);
@@ -218,12 +282,14 @@ export const getOnHoldOrders = async (req, res) => {
       .populate('cashier')
       .populate('salesman')
       .populate('orderItems.product')
+      .populate('customer')
       .sort({ createdAt: -1 });
   } else {
     onHoldOrders = await OrdersModal.find({ status: 'onHold', store: user.store })
       .populate('cashier')
       .populate('salesman')
       .populate('orderItems.product')
+      .populate('customer')
       .sort({ createdAt: -1 });
   }
 

@@ -6,6 +6,19 @@ import ProductsStatsModal from '../models/productsStats.js';
 
 const router = express.Router();
 
+const updateProductsStats = (id, quantity) => {
+  let bulkOptions = [
+    {
+      updateOne: {
+        filter: { product: id },
+        update: { $inc: { available: quantity } },
+      },
+    },
+  ];
+
+  ProductsStatsModal.bulkWrite(bulkOptions);
+};
+
 export const getProducts = async (req, res) => {
   try {
     const query = {};
@@ -89,8 +102,17 @@ export const updateProduct = async (req, res) => {
   const products = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No product with id: ${id}`);
+  const product = await ProductsModal.findOne({ _id: id });
 
   const updatedProduct = { ...products, _id: id };
+
+  if (product.quantity !== products.quantity) {
+    const quantity =
+      Number(products.quantity) > Number(product.quantity)
+        ? +(products.quantity - product.quantity)
+        : -(product.quantity - products.quantity);
+    updateProductsStats(id, quantity);
+  }
 
   await ProductsModal.findByIdAndUpdate(id, updatedProduct, { new: true });
 
@@ -103,6 +125,7 @@ export const deleteProduct = async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No product with id: ${id}`);
 
   await ProductsModal.findByIdAndRemove(id);
+  await ProductsStatsModal.findOneAndDelete({ product: id });
 
   res.json({ message: 'Product deleted successfully.' });
 };

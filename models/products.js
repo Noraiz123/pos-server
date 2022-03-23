@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const userSchema = mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
-  retailPrice: { type: Number},
+  retailPrice: { type: Number, required: true },
   color: { type: String },
   size: { type: String },
   store: {

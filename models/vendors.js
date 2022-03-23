@@ -10,4 +10,4 @@ const categoriesSchema = mongoose.Schema({
   description: String,
 });
 
-export default mongoose.model('Categories', categoriesSchema);
+export default mongoose.model('Vendors', categoriesSchema);
