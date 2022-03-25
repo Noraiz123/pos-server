@@ -114,16 +114,20 @@ export const createExpense = async (req, res) => {
 };
 
 export const updateExpense = async (req, res) => {
-  const { id } = req.params;
-  const expense = req.body;
+  try {
+    const { id } = req.params;
+    const expense = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No expense with id: ${id}`);
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No expense with id: ${id}`);
 
-  const updatedExpense = { ...expense, _id: id };
+    const updatedExpense = { ...expense, _id: id };
 
-  await ExpenseModal.findByIdAndUpdate(id, updatedExpense, { new: true });
+    await ExpenseModal.findByIdAndUpdate(id, updatedExpense, { new: true, runValidators: true });
 
-  res.json(updatedExpense);
+    res.json(updatedExpense);
+  } catch (error) {
+    res.status(409).json({ message: error.message });
+  }
 };
 
 export const deleteExpense = async (req, res) => {
