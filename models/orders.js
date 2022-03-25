@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const ordersSchema = mongoose.Schema({
   status: { type: String, required: true },
+  invoiceNo: { type: Number, required: true },
   store: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Store',
@@ -28,7 +29,23 @@ const ordersSchema = mongoose.Schema({
       paidPrice: Number,
       currentPrice: Number,
       currentDiscount: Number,
-      quantity: Number,
+      quantity: {
+        type: Number,
+        validate: {
+          validator: async function  (value , other) {
+            console.log(other , value , this)
+            if (value) {
+              const product = await mongoose.models['Products'].findOne({ _id: this.product });
+              if (product?.quantity >= value) {
+                return true;
+              } else {
+                return false;
+              }
+            }
+          },
+          message: 'Order quantity {VALUE} must be less than product quantity',
+        },
+      },
     },
   ],
   total: { type: Number },

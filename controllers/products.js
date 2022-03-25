@@ -68,13 +68,22 @@ export const getProduct = async (req, res) => {
   }
 };
 
+const randomBarCode = () => {
+  let val1 = Math.floor(100000 + Math.random() * 999999);
+  let val2 = Math.floor(10000 + Math.random() * 99999);
+
+  return '7' + val1 + val2;
+};
+
 export const createProduct = async (req, res) => {
   const product = req.body;
 
   const user = await UsersModal.findOne({ _id: req.userId });
+  const barCode = randomBarCode();
 
   const newProductsModal = new ProductsModal({
     ...product,
+    barcode: product.barcode !== '' ? product.barcode : barCode,
     store: product?.store ? product.store : user.store,
     createdAt: new Date().toISOString(),
   });
@@ -113,10 +122,15 @@ export const updateProduct = async (req, res) => {
         : -(product.quantity - products.quantity);
     updateProductsStats(id, quantity);
   }
+  try {
+    const update = await ProductsModal.findByIdAndUpdate(id, updatedProduct, { new: true, runValidators: true })
+      .populate('store')
+      .populate('category');
 
-  await ProductsModal.findByIdAndUpdate(id, updatedProduct, { new: true });
-
-  res.json(updatedProduct);
+    res.json(update);
+  } catch (error) {
+    res.status(409).json({ message: error.message });
+  }
 };
 
 export const deleteProduct = async (req, res) => {

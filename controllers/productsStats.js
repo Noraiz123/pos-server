@@ -7,11 +7,16 @@ export const getProductsStats = async (req, res) => {
     const query = {};
     const page = Number(req.query.page) || 1;
     const perPage = Number(req.query.per_page) || 10;
+    const filters = {};
 
     const startIndex = (page - 1) * perPage;
     const total = await ProductsStatsModal.countDocuments({});
 
     const user = await UsersModal.findOne({ _id: req.userId });
+
+    if (req.query.store !== '') {
+      filters.store = req.query.store;
+    }
 
     let productsStats;
     query.$or = [
@@ -22,8 +27,11 @@ export const getProductsStats = async (req, res) => {
 
     const product = await ProductsModal.find(query);
 
+    filters.product = product.map((e) => e._id);
+
     if (user && user.role === 'superAdmin') {
-      productsStats = await ProductsStatsModal.find({ product: product.map((e) => e._id) })
+      productsStats = await ProductsStatsModal.find()
+        .where(filters)
         .populate('product')
         .limit(perPage)
         .skip(startIndex);

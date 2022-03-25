@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const userSchema = mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
+  barcode: { type: String },
   retailPrice: { type: Number, required: true },
   color: { type: String },
   size: { type: String },
@@ -12,7 +13,7 @@ const userSchema = mongoose.Schema({
     required: true,
   },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Categories' },
-  discount: { type: Number, default: 0 },
+  discount: { type: Number, default: 0, max: 100 },
   quantity: { type: Number, default: 1 },
   imgUrl: { type: String },
   createdAt: {

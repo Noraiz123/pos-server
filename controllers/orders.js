@@ -58,6 +58,18 @@ export const getOrders = async (req, res) => {
       };
     }
 
+    if (user?.store && user.role === 'admin') {
+      filters.store = user.store;
+    }
+
+    if (query?.store !== '' && user.role === 'superAdmin') {
+      filters.store = mongoose.Types.ObjectId(query.store);
+    }
+
+    if (query?.invoiceNo !== '') {
+      filters.invoiceNo = Number(query.invoiceNo);
+    }
+
     if (query.cashier_id_eq !== '') {
       filters.cashier = query.cashier_id_eq;
     }
@@ -82,9 +94,7 @@ export const getOrders = async (req, res) => {
         .sort({ createdAt: -1 });
     } else if (user && user.role === 'admin') {
       total = await OrdersModal.countDocuments({ store: user.store });
-      ordersModals = await OrdersModal.find({
-        store: user.store,
-      })
+      ordersModals = await OrdersModal.find()
         .where(filters)
         .populate('cashier')
         .populate('salesman')
@@ -96,7 +106,8 @@ export const getOrders = async (req, res) => {
     } else {
       return res.status(400).json({ message: 'You are not allowed to access orders' });
     }
-    if (total > 0) {
+
+    if (total && total > 0) {
       totalSales = await OrdersModal.aggregate([
         { $match: filters },
         {
@@ -122,12 +133,17 @@ export const getOrders = async (req, res) => {
       $lt: lastDayOfMonth,
     };
 
+    const chartStatsFilters = {
+      createdAt: filters?.createdAt || statsOfFullMonth,
+    };
+
+    if (filters?.store) {
+      chartStatsFilters.store = filters.store;
+    }
+
     const chartStats = await OrdersModal.aggregate([
       {
-        $match: {
-          createdAt: filters?.createdAt ? filters.createdAt : statsOfFullMonth,
-          store: user.role === 'admin' ? user.store : undefined,
-        },
+        $match: chartStatsFilters,
       },
       {
         $group: {
@@ -146,9 +162,11 @@ export const getOrders = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / perPage),
       totalTransactions: total,
-      totalSales: totalSales[0]?.total || 0,
+      totalSales: totalSales?.[0]?.total || 0,
       totalProfit:
-        totalSales.length > 0 && totalRetailPrice.length > 0 ? totalSales[0]?.total - totalRetailPrice[0]?.total : 0,
+        totalSales && totalRetailPrice && totalSales.length > 0 && totalRetailPrice.length > 0
+          ? totalSales[0]?.total - totalRetailPrice[0]?.total
+          : 0,
       chartStats: chartStats,
     });
   } catch (error) {
@@ -156,14 +174,24 @@ export const getOrders = async (req, res) => {
   }
 };
 
+const getRandomId = (min = 0, max = 500000) => {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  const num = Math.floor(Math.random() * (max - min + 1)) + min;
+  return num.toString().padStart(6, '0');
+};
+
 export const createOrder = async (req, res) => {
   const order = req.body;
 
   const user = await UsersModal.findOne({ _id: req.userId });
 
+  const invoiceNo = getRandomId();
+
   const newOrderModal = new OrdersModal({
     ...order,
     store: user?.store ? user.store : 'undefined',
+    invoiceNo: invoiceNo,
     cashier: req?.userId,
     createdAt: new Date().toISOString(),
   });
@@ -262,14 +290,17 @@ export const updateOrder = async (req, res) => {
   const updatedOrder = { ...order, orderItems: filteredItems, _id: id };
 
   try {
-    await OrdersModal.findByIdAndUpdate(id, updatedOrder, { new: true });
+    const update = await OrdersModal.findByIdAndUpdate(id, updatedOrder, { new: true })
+      .populate('cashier')
+      .populate('salesman')
+      .populate('orderItems.product')
+      .populate('customer');
     ProductsModal.bulkWrite(bulkOptions);
     ProductsStatsModal.bulkWrite(statsBulkOptions);
+    res.json(update);
   } catch (error) {
-    console.log(error);
+    res.status(409).json({ message: error.message });
   }
-
-  res.json(updatedOrder);
 };
 
 export const getOnHoldOrders = async (req, res) => {
@@ -294,4 +325,14 @@ export const getOnHoldOrders = async (req, res) => {
   }
 
   res.status(200).json(onHoldOrders);
+};
+
+export const deleteOrder = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No order with id: ${id}`);
+
+  await OrdersModal.findByIdAndRemove(id);
+
+  res.json({ message: 'Order deleted successfully.' });
 };
