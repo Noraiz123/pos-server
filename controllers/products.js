@@ -68,6 +68,20 @@ export const getProduct = async (req, res) => {
   }
 };
 
+export const getAllProduct = async (req, res) => {
+  try {
+    const user = await UsersModal.findOne({ _id: req.userId });
+    if (user?.store) {
+      const products = await ProductsModal.find({ store: user?.store }).populate('category').populate('store');
+      res.status(200).json(products);
+    } else {
+      res.status(400).json({ message: 'You are not allowed to access these products' });
+    }
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+};
+
 const randomBarCode = () => {
   let val1 = Math.floor(100000 + Math.random() * 999999);
   let val2 = Math.floor(10000 + Math.random() * 99999);
