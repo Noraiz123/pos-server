@@ -26,7 +26,7 @@ export const getProducts = async (req, res) => {
     const perPage = Number(req.query.per_page) || 10;
 
     const startIndex = (page - 1) * perPage;
-    const total = await ProductsModal.countDocuments({});
+    let total;
 
     query.$or = [
       {
@@ -38,6 +38,7 @@ export const getProducts = async (req, res) => {
     let productsModals;
 
     if (user && user.role === 'superAdmin') {
+      total = await ProductsModal.countDocuments({});
       productsModals = await ProductsModal.find(query)
         .populate('category')
         .populate('vendor')
@@ -45,6 +46,7 @@ export const getProducts = async (req, res) => {
         .limit(perPage)
         .skip(startIndex);
     } else {
+      total = await ProductsModal.countDocuments({ store: user?.store });
       productsModals = await ProductsModal.find({ store: user.store, ...query })
         .populate('store')
         .populate('category')
