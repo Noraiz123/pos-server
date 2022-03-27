@@ -40,6 +40,7 @@ export const getProducts = async (req, res) => {
     if (user && user.role === 'superAdmin') {
       productsModals = await ProductsModal.find(query)
         .populate('category')
+        .populate('vendor')
         .populate('store')
         .limit(perPage)
         .skip(startIndex);
@@ -47,6 +48,7 @@ export const getProducts = async (req, res) => {
       productsModals = await ProductsModal.find({ store: user.store, ...query })
         .populate('store')
         .populate('category')
+        .populate('vendor')
         .limit(perPage)
         .skip(startIndex);
     }
@@ -72,10 +74,14 @@ export const getAllProduct = async (req, res) => {
   try {
     const user = await UsersModal.findOne({ _id: req.userId });
     if (user?.store) {
-      const products = await ProductsModal.find({ store: user?.store }).populate('category').populate('store');
+      const products = await ProductsModal.find({ store: user?.store })
+        .populate('category')
+        .populate('store')
+        .populate('vendor');
       res.status(200).json(products);
-    } else {
-      res.status(400).json({ message: 'You are not allowed to access these products' });
+    } else if (user.role === 'superAdmin') {
+      const products = await ProductsModal.find().populate('category').populate('store').populate('vendor');
+      res.status(200).json(products);
     }
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -103,7 +109,9 @@ export const createProduct = async (req, res) => {
   });
 
   try {
-    await newProductsModal.save();
+    await newProductsModal.save().then((t) => {
+      return t.populate('category').populate('vendor').populate('store').execPopulate();
+    });
 
     const createProductsStats = new ProductsStatsModal({
       product: newProductsModal._id,
@@ -139,7 +147,8 @@ export const updateProduct = async (req, res) => {
   try {
     const update = await ProductsModal.findByIdAndUpdate(id, updatedProduct, { new: true, runValidators: true })
       .populate('store')
-      .populate('category');
+      .populate('category')
+      .populate('vendor');
 
     res.json(update);
   } catch (error) {

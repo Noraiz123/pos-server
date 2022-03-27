@@ -7,6 +7,7 @@ import store from '../models/store.js';
 import UsersModal from '../models/users.js';
 import ProductsStatsModal from '../models/productsStats.js';
 import moment from 'moment';
+import CustomerModal from '../models/customers.js';
 
 const decreaseQuantity = (products) => {
   let bulkOptions = products.orderItems.map((item) => {
@@ -185,6 +186,14 @@ export const createOrder = async (req, res) => {
   const order = req.body;
 
   const user = await UsersModal.findOne({ _id: req.userId });
+  let customer;
+
+  if (order.customerAttributes) {
+    const newCustomer = new CustomerModal({ ...order.customerAttributes, store: user?.store });
+
+    customer = await newCustomer.save();
+    order.customer = customer._id;
+  }
 
   const invoiceNo = getRandomId();
 

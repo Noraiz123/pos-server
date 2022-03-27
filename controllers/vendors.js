@@ -4,15 +4,8 @@ import UsersModal from '../models/users.js';
 
 export const getVendors = async (req, res) => {
   try {
-    const user = await UsersModal.findOne({ _id: req.userId });
-
     let vendorModal;
-
-    if (user && user.role === 'superAdmin') {
-      vendorModal = await VendorsModal.find();
-    } else {
-      vendorModal = await VendorsModal.find({ store: user.store });
-    }
+    vendorModal = await VendorsModal.find();
     res.status(200).json(vendorModal);
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -24,12 +17,7 @@ export const createVendor = async (req, res) => {
   const user = await UsersModal.findOne({ _id: req.userId });
 
   let newVendorModal;
-
-  if (user && user.role === 'superAdmin') {
-    newVendorModal = new VendorsModal(vendor);
-  } else {
-    newVendorModal = new VendorsModal({ ...vendor, store: user.store });
-  }
+  newVendorModal = new VendorsModal(vendor);
   try {
     await newVendorModal.save();
 
