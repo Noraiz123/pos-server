@@ -8,9 +8,9 @@ export const getProductsStats = async (req, res) => {
     const page = Number(req.query.page) || 1;
     const perPage = Number(req.query.per_page) || 10;
     const filters = {};
+    let total;
 
     const startIndex = (page - 1) * perPage;
-    const total = await ProductsStatsModal.countDocuments({});
 
     const user = await UsersModal.findOne({ _id: req.userId });
 
@@ -25,11 +25,22 @@ export const getProductsStats = async (req, res) => {
       },
     ];
 
+    if (user.role === 'superAdmin') {
+      if (filters?.store) {
+        total = await ProductsStatsModal.countDocuments({ store: filters.store });
+      } else {
+        total = await ProductsStatsModal.countDocuments({});
+      }
+    } else {
+      total = await ProductsStatsModal.countDocuments({ store: user?.store });
+    }
+
     const product = await ProductsModal.find(query);
 
     filters.product = product.map((e) => e._id);
 
     if (user && user.role === 'superAdmin') {
+      total = await ProductsStatsModal.countDocuments({});
       productsStats = await ProductsStatsModal.find()
         .where(filters)
         .populate('product')

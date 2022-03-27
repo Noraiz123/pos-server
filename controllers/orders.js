@@ -200,7 +200,7 @@ export const createOrder = async (req, res) => {
   const newOrderModal = new OrdersModal({
     ...order,
     store: user?.store ? user.store : 'undefined',
-    invoiceNo: invoiceNo,
+    invoiceNo: order?.invoiceNo || invoiceNo,
     cashier: req?.userId,
     createdAt: new Date().toISOString(),
   });

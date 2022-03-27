@@ -9,10 +9,11 @@ export const signin = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const oldUser = await UserModal.findOne({ email }).populate("store");
+    const oldUser = await UserModal.findOne({ email }).populate('store');
 
     if (!oldUser) return res.status(404).json({ message: "User doesn't exist" });
     const isPasswordCorrect = await bcrypt.compare(password, oldUser.password);
+    if (oldUser.role === 'salesman') return res.status(400).json({ message: 'You are not allowed to login' });
 
     if (!isPasswordCorrect) return res.status(400).json({ message: 'Invalid credentials' });
 
@@ -31,8 +32,6 @@ export const getUsers = async (req, res) => {
       usersModals = await UserModal.find().populate('store');
     } else if (user?.role === 'admin') {
       usersModals = await UserModal.find({ store: user.store }).populate('store');
-    } else {
-      res.status(400).json({ message: 'You are not Allowed to access users' });
     }
     res.status(200).json(usersModals);
   } catch (error) {

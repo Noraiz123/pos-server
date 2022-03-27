@@ -14,7 +14,6 @@ export const getVendors = async (req, res) => {
 
 export const createVendor = async (req, res) => {
   const vendor = req.body;
-  const user = await UsersModal.findOne({ _id: req.userId });
 
   let newVendorModal;
   newVendorModal = new VendorsModal(vendor);

@@ -4,15 +4,9 @@ import UsersModal from '../models/users.js';
 
 export const getCategories = async (req, res) => {
   try {
-    const user = await UsersModal.findOne({ _id: req.userId });
-
     let categoriesModals;
 
-    if (user && user.role === 'superAdmin') {
-      categoriesModals = await CategoriesModal.find();
-    } else {
-      categoriesModals = await CategoriesModal.find({ store: user.store });
-    }
+    categoriesModals = await CategoriesModal.find();
     res.status(200).json(categoriesModals);
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -21,13 +15,8 @@ export const getCategories = async (req, res) => {
 
 export const createCategory = async (req, res) => {
   const category = req.body;
-  const user = await UsersModal.findOne({ _id: req.userId });
   let newCategoryModal;
-  if (user && user.role === 'superAdmin') {
-    newCategoryModal = new CategoriesModal(category);
-  } else {
-    newCategoryModal = new CategoriesModal({ ...category, store: user.store });
-  }
+  newCategoryModal = new CategoriesModal(category);
   try {
     await newCategoryModal.save();
 

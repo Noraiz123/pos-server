@@ -23,6 +23,9 @@ const ordersSchema = mongoose.Schema({
   change: {
     type: Number,
   },
+  paid: {
+    type: Number,
+  },
   orderItems: [
     {
       product: { type: mongoose.Schema.Types.ObjectId, ref: 'Products' },
