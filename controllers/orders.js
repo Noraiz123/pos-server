@@ -84,7 +84,7 @@ export const getOrders = async (req, res) => {
     }
 
     if (user && user.role === 'superAdmin') {
-      total = await OrdersModal.countDocuments({});
+      total = await OrdersModal.countDocuments({}).where(filters);
       ordersModals = await OrdersModal.find()
         .where(filters)
         .populate('cashier')
@@ -94,7 +94,7 @@ export const getOrders = async (req, res) => {
         .skip(startIndex)
         .sort({ createdAt: -1 });
     } else if (user && user.role === 'admin') {
-      total = await OrdersModal.countDocuments({ store: user.store });
+      total = await OrdersModal.countDocuments({}).where(filters);
       ordersModals = await OrdersModal.find()
         .where(filters)
         .populate('cashier')
@@ -108,15 +108,21 @@ export const getOrders = async (req, res) => {
       return res.status(400).json({ message: 'You are not allowed to access orders' });
     }
 
+    const totalFilters = { ...filters };
+
+    if (filters?.cashier) {
+      totalFilters.cashier = mongoose.Types.ObjectId(filters.cashier);
+    }
+
     if (total && total > 0) {
       totalSales = await OrdersModal.aggregate([
-        { $match: filters },
+        { $match: totalFilters },
         {
           $group: { _id: null, total: { $sum: '$total' } },
         },
       ]);
       totalRetailPrice = await OrdersModal.aggregate([
-        { $match: filters },
+        { $match: totalFilters },
         {
           $group: { _id: null, total: { $sum: '$totalRetailPrice' } },
         },
